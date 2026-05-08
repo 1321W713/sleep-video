@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>助眠视频</title>
+    <title>还不睡？</title>
     <style>
         body, html {
             margin: 0;
@@ -12,10 +12,11 @@
             height: 100%;
             overflow: hidden;
             background: #0d0d0d;
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
         }
 
-        /* ---- 引导封面 ---- */
-        .cover {
+        /* ---- 提问界面 ---- */
+        .interaction-layer {
             position: fixed;
             top: 0;
             left: 0;
@@ -27,64 +28,105 @@
             justify-content: center;
             align-items: center;
             z-index: 10;
-            transition: opacity 0.6s ease, visibility 0.6s ease;
+            transition: opacity 0.5s ease, visibility 0.5s ease;
         }
 
-        .cover.hidden {
+        .interaction-layer.hidden {
             opacity: 0;
             visibility: hidden;
             pointer-events: none;
         }
 
-        .cover .icon {
-            font-size: 4rem;
-            margin-bottom: 0.5rem;
-        }
-
-        .cover h1 {
-            color: #ffffff;
+        h1 {
+            color: #fff;
             font-size: 2.5rem;
             font-weight: 600;
-            margin: 0 0 0.5rem 0;
+            margin: 0 0 2.5rem 0;
             letter-spacing: 2px;
+            text-align: center;
+            padding: 0 20px;
         }
 
-        .cover p {
-            color: #a0a0b0;
-            font-size: 1.1rem;
-            margin: 0 0 2rem 0;
+        .buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            align-items: center;
         }
 
-        .play-btn {
+        .btn {
             background: #7c5cfc;
             color: white;
             border: none;
-            padding: 16px 48px;
-            font-size: 1.1rem;
+            padding: 14px 36px;
+            font-size: 1.2rem;
             font-weight: 600;
             border-radius: 50px;
             cursor: pointer;
-            transition: background 0.2s ease, transform 0.1s ease;
-            box-shadow: 0 4px 15px rgba(124, 92, 252, 0.4);
+            transition: background 0.2s, transform 0.1s;
+            box-shadow: 0 4px 15px rgba(124, 92, 252, 0.3);
+            min-width: 160px;
+            text-align: center;
         }
 
-        .play-btn:hover {
+        .btn:hover {
             background: #6a4de6;
             transform: scale(1.04);
         }
 
-        .play-btn:active {
-            transform: scale(0.97);
+        .btn.secondary {
+            background: rgba(255, 255, 255, 0.15);
+            box-shadow: none;
+            backdrop-filter: blur(5px);
         }
 
-        /* ---- 视频播放器容器 ---- */
+        .btn.secondary:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+
+        /* ---- “晚了”提示层 ---- */
+        .late-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        .late-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .late-text {
+            font-size: 6rem;
+            font-weight: 700;
+            color: #ffb3b3;
+            text-shadow: 0 0 20px rgba(255, 100, 100, 0.6);
+            animation: fadeInScale 0.5s ease;
+        }
+
+        @keyframes fadeInScale {
+            0% { transform: scale(0.5); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* ---- 视频播放器 ---- */
         .video-container {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            display: none;   /* 初始隐藏 */
+            display: none;
             justify-content: center;
             align-items: center;
             background: #000;
@@ -94,42 +136,65 @@
             max-width: 100%;
             max-height: 100vh;
             outline: none;
-            border-radius: 4px;
         }
     </style>
 </head>
 <body>
-    <!-- 引导封面 -->
-    <div class="cover" id="cover">
-        <div class="icon">🌙</div>
-        <h1>助眠视频</h1>
-        <p>静下心来，准备进入放松时刻</p>
-        <button class="play-btn" id="playButton">开始播放</button>
+    <!-- 交互层 -->
+    <div class="interaction-layer" id="interactionLayer">
+        <h1>这么晚还不睡觉？</h1>
+        <div class="buttons">
+            <button class="btn" id="btnSleep">现在睡了</button>
+            <button class="btn secondary" id="btnAwake">我就不睡</button>
+        </div>
     </div>
 
-    <!-- 视频播放器（点击按钮后才显示） -->
+    <!-- “晚了”浮层 -->
+    <div class="late-overlay" id="lateOverlay">
+        <span class="late-text">晚了</span>
+    </div>
+
+    <!-- 视频播放区 -->
     <div class="video-container" id="videoContainer">
         <video id="myVideo" src="soothe.mp4" controls playsinline></video>
     </div>
 
     <script>
-        const cover = document.getElementById('cover');
-        const playBtn = document.getElementById('playButton');
+        const interactionLayer = document.getElementById('interactionLayer');
+        const btnSleep = document.getElementById('btnSleep');
+        const btnAwake = document.getElementById('btnAwake');
+        const lateOverlay = document.getElementById('lateOverlay');
         const videoContainer = document.getElementById('videoContainer');
         const video = document.getElementById('myVideo');
 
-        playBtn.addEventListener('click', () => {
-            // 隐藏封面
-            cover.classList.add('hidden');
-            // 显示视频
+        // 公共函数：开始播放
+        function playVideo() {
+            interactionLayer.classList.add('hidden');
             videoContainer.style.display = 'flex';
-            // 尝试自动播放（因为是由用户点击触发，大概率成功）
-            video.play().catch(err => {
-                console.log('自动播放未成功，请手动点击播放按钮', err);
+            video.play().catch(() => {
+                // 万一自动播放被阻，用户可手动点控件
             });
+        }
+
+        // 现在睡了
+        btnSleep.addEventListener('click', () => {
+            // 1. 隐藏交互层
+            interactionLayer.classList.add('hidden');
+            // 2. 显示“晚了”
+            lateOverlay.classList.add('show');
+            // 3. 1.2秒后关闭浮层并播放视频
+            setTimeout(() => {
+                lateOverlay.classList.remove('show');
+                playVideo();
+            }, 1200);
         });
 
-        // 点击视频区域也可以开始/暂停（可选体验）
+        // 我就不睡
+        btnAwake.addEventListener('click', () => {
+            playVideo();
+        });
+
+        // 点击视频可暂停/播放
         video.addEventListener('click', () => {
             if (video.paused) {
                 video.play();
